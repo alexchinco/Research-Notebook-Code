@@ -30,8 +30,6 @@ class CreateDataBase:
 
         self.BASE_YEAR = 1950
 
-        self.connection = Connection() 
-
         self.fillCrspDB()
         self.fillCompustatDB()
 
@@ -45,7 +43,6 @@ class CreateDataBase:
         cusip        = row[1]
         ticker       = row[2]
         permno       = row[3]
-        sic          = int(row[5])
         shares       = int(row[8])
         price        = float(row[9])
         volume       = int(row[10])
@@ -55,6 +52,10 @@ class CreateDataBase:
         year  = int(np.floor(int(row[0]) / 10000))
         month = int(np.floor(int(row[0]) / 100 - year * 100))
         date  = 12 * (year - self.BASE_YEAR) + (month - 1)
+
+        sic4 = int(row[5])
+        sic3 = int(np.floor(sic4/10))
+        sic2 = int(np.floor(sic4/100))
         
         if (row[4] == 1):
             exchange = "nyse"
@@ -80,7 +81,9 @@ class CreateDataBase:
                "cusip":cusip,
                "ticker":ticker,
                "permno":permno,
-               "sic":sic,
+               "sic4":sic4,
+               "sic3":sic3,
+               "sic2":sic2,
                "shares":shares,
                "price":price,
                "volume":volume,
@@ -111,11 +114,14 @@ class CreateDataBase:
         ebit       = float(row[18])
         employees  = float(row[19])
         sales      = float(row[20])
-        sic        = int(row[25])
         
         year  = int(np.floor(int(row[4]) / 10000))
         month = int(np.floor(int(row[4]) / 100 - year * 100))
         date  = 12 * (year - self.BASE_YEAR) + (month - 1)
+
+        sic4 = int(row[25])
+        sic3 = int(np.floor(sic4/10))
+        sic2 = int(np.floor(sic4/100))
         
         obs = {"gvkey":gvkey,
                "permno":permno,
@@ -132,7 +138,9 @@ class CreateDataBase:
                "ebit":ebit,
                "employees":employees,
                "sales":sales,
-               "sic":sic
+               "sic4":sic4,
+               "sic3":sic3,
+               "sic2":sic2
                }
         
         return obs
@@ -148,8 +156,10 @@ class CreateDataBase:
         writer = csv.writer(open(self.CRSP_VALUE_ERROR_FILE_NAME, 'wb'), delimiter = ",")
         count = 0
 
-        db     = self.connection.financial
-        crspDB = db.crsp
+        mongo = Connection()
+        print mongo.server_info()
+        print mongo.database_names()
+        db    = mongo.financial.crsp
 
         for row in reader:            
             if (count == 0):
@@ -157,11 +167,12 @@ class CreateDataBase:
             else:
                 try:
                     obs = self.formatCrspData(row)
-                    if ((obs["exchange"] != "other") and (obs["status"] == "active")):
-                        crspDB.insert(obs)
+                    db.insert(obs)
                 except ValueError:
                     writer.writerow(row)
             count = count + 1
+
+        mongo.disconnect()
 
         print "CRSP DataBase Complete!"
         
@@ -177,8 +188,10 @@ class CreateDataBase:
         writer = csv.writer(open(self.COMPUSTAT_VALUE_ERROR_FILE_NAME, 'wb'), delimiter = ",")
         count  = 0
 
-        db          = self.connection.financial
-        compustatDB = db.compustat
+        mongo = Connection()
+        print mongo.server_info()
+        print mongo.database_names()
+        db    = mongo.financial.compustat
 
         for row in reader:            
             if (count == 0):
@@ -186,13 +199,23 @@ class CreateDataBase:
             else:
                 try:
                     obs = self.formatCompustatData(row)
-                    compustatDB.insert(obs)
+                    db.insert(obs)
                 except ValueError:
                     writer.writerow(row)
             count = count + 1
 
+        mongo.disconnect()
+
         print "COMPUSTAT DataBase Complete!"
 
 
+
+
+
+
+
+if __name__ == "__main__":
+
+    CreateDataBase()
 
 
